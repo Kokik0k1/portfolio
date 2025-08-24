@@ -114,12 +114,54 @@ function loadSavedNodePositions() {
 /**
  * グラフ表示の更新（保存された位置情報を活用）
  */
+/**
+ * グラフ表示の更新（保存された位置情報を活用）
+ */
 function renderGraph() {
     const svg = document.getElementById('graph-svg');
-    if (!svg) return;
+    if (!svg) {
+        console.error('❌ graph-svg要素が見つかりません');
+        return;
+    }
     
-    // 保存された位置情報を読み込み
-    loadSavedNodePositions();
+    console.log('🎨 GraphView描画開始');
+    
+    // データの存在確認
+    const allItems = getAllItems(true);
+    if (allItems.length === 0) {
+        console.warn('⚠️ 表示するデータがありません');
+        svg.innerHTML = '<text x="50" y="50" fill="#666" font-size="16">データがありません</text>';
+        return;
+    }
+    
+    console.log('📊 アイテム数:', allItems.length);
+    
+    // 位置情報を確認・初期化
+    if (!loadSavedNodePositions()) {
+        console.log('🔄 保存された位置情報がないため初期化を実行');
+        initializeNodePositions();
+    }
+    
+    // 初期化後も位置情報がない場合の緊急処理
+    if (Object.keys(nodePositions).length === 0) {
+        console.warn('⚠️ 位置情報初期化に失敗。緊急初期化を実行');
+        // 緊急時の簡易位置設定
+        allItems.forEach((item, index) => {
+            nodePositions[item.id] = {
+                x: 100 + (index % 5) * 150,
+                y: 100 + Math.floor(index / 5) * 100
+            };
+        });
+        
+        // projectDataにも保存
+        if (!projectData.graphLayout) {
+            projectData.graphLayout = { nodePositions: {}, lastUpdated: null };
+        }
+        projectData.graphLayout.nodePositions = {...nodePositions};
+        projectData.graphLayout.lastUpdated = new Date().toISOString();
+    }
+    
+    console.log('📍 使用可能な位置情報:', Object.keys(nodePositions).length, '個');
     
     // SVGをクリア
     svg.innerHTML = `
@@ -135,7 +177,6 @@ function renderGraph() {
     const width = svg.clientWidth;
     const height = svg.clientHeight;
     
-    const allItems = getAllItems(true);
     const positions = {};
     
     // 位置情報を準備
@@ -149,34 +190,38 @@ function renderGraph() {
         }
     });
     
+    console.log('🗺️ 描画対象ノード数:', Object.keys(positions).length);
+    
     const graphGroup = document.getElementById('graph-group');
     if (!graphGroup) return;
     
     // 依存関係の線を描画
     allItems.forEach(item => {
-        item.dependencies.forEach(depId => {
-            if (positions[depId] && positions[item.id]) {
-                const fromRadius = allItems.find(i => i.id === depId)?.type === 'milestone' ? 25 : 20;
-                const toRadius = item.type === 'milestone' ? 25 : 20;
-                
-                const adjustedLine = createAdjustedLine(
-                    positions[depId], 
-                    positions[item.id], 
-                    fromRadius, 
-                    toRadius
-                );
-                
-                if (adjustedLine) {
-                    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-                    line.setAttribute('class', 'link');
-                    line.setAttribute('x1', adjustedLine.startX);
-                    line.setAttribute('y1', adjustedLine.startY);
-                    line.setAttribute('x2', adjustedLine.endX);
-                    line.setAttribute('y2', adjustedLine.endY);
-                    graphGroup.appendChild(line);
+        if (item.dependencies && item.dependencies.length > 0) {
+            item.dependencies.forEach(depId => {
+                if (positions[depId] && positions[item.id]) {
+                    const fromRadius = allItems.find(i => i.id === depId)?.type === 'milestone' ? 25 : 20;
+                    const toRadius = item.type === 'milestone' ? 25 : 20;
+                    
+                    const adjustedLine = createAdjustedLine(
+                        positions[depId], 
+                        positions[item.id], 
+                        fromRadius, 
+                        toRadius
+                    );
+                    
+                    if (adjustedLine) {
+                        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                        line.setAttribute('class', 'link');
+                        line.setAttribute('x1', adjustedLine.startX);
+                        line.setAttribute('y1', adjustedLine.startY);
+                        line.setAttribute('x2', adjustedLine.endX);
+                        line.setAttribute('y2', adjustedLine.endY);
+                        graphGroup.appendChild(line);
+                    }
                 }
-            }
-        });
+            });
+        }
     });
     
     // ノードを描画
@@ -187,6 +232,8 @@ function renderGraph() {
     
     // グラフの変形を適用
     updateGraphTransform();
+    
+    console.log('✅ GraphView描画完了');
 }
 
 /**

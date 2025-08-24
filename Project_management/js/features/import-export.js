@@ -258,6 +258,9 @@ function updateImportFormat() {
 /**
  * データをインポート
  */
+/**
+ * データをインポート
+ */
 function importData() {
     const format = document.querySelector('input[name="import-format"]:checked').value;
     const replaceMode = document.getElementById('replace-data').checked;
@@ -312,6 +315,24 @@ function importData() {
         }
         
         alert(message);
+        
+        // TSVインポート後は位置情報がないので初期化を実行
+        if (format === 'tsv') {
+            console.log('🔧 TSVインポート後の位置情報初期化を実行');
+            setTimeout(() => {
+                try {
+                    if (typeof initializeNodePositions === 'function') {
+                        initializeNodePositions();
+                        console.log('✅ TSVインポート後の位置情報初期化完了');
+                    } else {
+                        console.error('❌ initializeNodePositions関数が見つかりません');
+                    }
+                } catch (error) {
+                    console.error('❌ 位置情報初期化エラー:', error);
+                }
+            }, 100);
+        }
+        
         logSuccess('データインポート完了', { mode, itemCount, positionCount });
         
     } catch (error) {
@@ -319,7 +340,6 @@ function importData() {
         logError('データインポートエラー', error);
     }
 }
-
 /**
  * プロジェクトデータを置き換え
  * @param {Object} newData - 新しいデータ
@@ -332,9 +352,14 @@ function replaceProjectData(newData) {
         timelineOrder: newData.timelineOrder || []
     };
     
-    if (projectData.graphLayout && projectData.graphLayout.nodePositions) {
+    if (projectData.graphLayout && projectData.graphLayout.nodePositions && 
+        Object.keys(projectData.graphLayout.nodePositions).length > 0) {
         nodePositions = {...projectData.graphLayout.nodePositions};
-        console.log('保存された位置情報を復元しました:', Object.keys(nodePositions).length, '個のノード');
+        console.log('✅ 保存された位置情報を復元しました:', Object.keys(nodePositions).length, '個のノード');
+    } else {
+        // 位置情報がない場合（TSVインポート等）はnodePositionsをクリア
+        nodePositions = {};
+        console.log('ℹ️ 位置情報なし。後で初期化が必要です。');
     }
     
     // タイムライン順序の復元
