@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Management System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Project Management System</h1>
+            <div class="view-toggle">
+                <button class="toggle-btn active" onclick="showView('table')">Table View</button>
+                <button class="toggle-btn" onclick="showView('graph')">Graph View</button>
+                <button class="toggle-btn" onclick="showView('timeline')">Timeline View</button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="controls">
+                <button class="add-btn" onclick="openAddModal()">Add New Item</button>
+                <button class="add-btn" onclick="openImportModal()">Import Data</button>
+                
+                <div class="export-dropdown">
+                    <button class="export-btn" onclick="toggleExportMenu()">Export Data▼</button>
+                    <div class="export-menu" id="export-menu">
+                        <div class="export-option" onclick="exportData('json')">
+                            <div class="format-name">JSON Format</div>
+                            <div class="format-desc">Structured data (with layout info)</div>
+                        </div>
+                        <div class="export-option" onclick="exportData('yaml')">
+                            <div class="format-name">YAML Format</div>
+                            <div class="format-desc">Config file (with layout info)</div>
+                        </div>
+                        <div class="export-option" onclick="exportData('tsv')">
+                            <div class="format-name">TSV Format</div>
+                            <div class="format-desc">For spreadsheets (no layout info)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- テーブル表示 -->
+            <div id="table-view" class="view active">
+                <div class="controls" style="margin-bottom: 15px;">
+                    <span style="font-weight: 600; margin-right: 10px;">Sort by:</span>
+                    <select id="table-sort-select" onchange="changeTableSort()" style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        <option value="custom">カスタム順序 (Timeline Order)</option>
+                        <option value="date">日付順 (Date Order)</option>
+                        <option value="type">タイプ別 (Type: Milestone → Task)</option>
+                    </select>
+                    <span style="margin-left: 15px; font-size: 12px; color: #666;">
+                        カスタム順序 = タイムラインで並び替えた順序
+                    </span>
+                </div>
+                <div class="table-container">
+                    <table id="project-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Start Date</th>
+                                <th>End Date/Due Date</th>
+                                <th>Dependencies</th>
+                                <th>Description</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- グラフ表示 -->
+            <div id="graph-view" class="view">
+                <div class="controls" style="margin-bottom: 10px;">
+                    <button class="btn btn-secondary" onclick="resetZoom()">Reset Zoom</button>
+                    <button class="btn btn-secondary" onclick="autoLayout()">Auto Layout</button>
+                    <button id="undo-btn" class="btn btn-secondary" onclick="undoNodePosition()" disabled title="元に戻す (Ctrl+Z)">↩️ Undo</button>
+                    <button id="redo-btn" class="btn btn-secondary" onclick="redoNodePosition()" disabled title="やり直し (Ctrl+Y)">↪️ Redo</button>
+                    <span style="margin-left: 20px; font-size: 12px; color: #666;">
+                        Mouse Wheel: Zoom | Drag: Pan | Node Drag: Move & Save | Ctrl+Z/Y: Undo/Redo
+                    </span>
+                </div>
+                <div class="graph-container" id="graph-container">
+                    <svg class="graph-svg" id="graph-svg">
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                                    refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#90a4ae" />
+                            </marker>
+                        </defs>
+                        <g id="graph-group"></g>
+                    </svg>
+                    
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #9c27b0; border-color: #7b1fa2;"></div>
+                            <span>Milestone</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ffcdd2; border-color: #c62828;"></div>
+                            <span>Not Started</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ffe0b2; border-color: #ef6c00;"></div>
+                            <span>In Progress</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #c8e6c9; border-color: #2e7d32;"></div>
+                            <span>Completed</span>
+                        </div>
+                    </div>
+                    
+                    <div id="tooltip" class="tooltip"></div>
+                </div>
+            </div>
+            
+            <!-- タイムライン表示 -->
+            <div id="timeline-view" class="view">
+                <div class="timeline-controls">
+                    <span style="font-weight: 600; margin-right: 10px;">Time Range:</span>
+                    <button class="timeline-zoom-btn active" onclick="setTimelineZoom('month')">Monthly</button>
+                    <button class="timeline-zoom-btn" onclick="setTimelineZoom('week')">Weekly</button>
+                    <button class="timeline-zoom-btn" onclick="setTimelineZoom('day')">Daily</button>
+                    
+                    <div class="export-dropdown" style="margin-left: 20px;">
+                        <button class="btn btn-secondary" onclick="toggleResetMenu()">Reset Order ▼</button>
+                        <div class="export-menu" id="reset-menu">
+                            <div class="export-option" onclick="resetTimelineOrder('date')">
+                                <div class="format-name">日付順リセット</div>
+                                <div class="format-desc">時系列順に並び替え</div>
+                            </div>
+                            <div class="export-option" onclick="resetTimelineOrder('type')">
+                                <div class="format-name">タイプ別リセット</div>
+                                <div class="format-desc">マイルストーン → タスクの順</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <span style="margin-left: 20px; font-size: 12px; color: #666;">
+                        Red Line: Today | Bar Hover: Details | Drag Items to Reorder
+                    </span>
+                </div>
+                
+                <div class="timeline-container" id="timeline-container">
+                    <div class="timeline-header">
+                        <div class="timeline-sidebar" id="timeline-sidebar">Items</div>
+                        <div class="timeline-dates" id="timeline-dates"></div>
+                    </div>
+                    
+                    <div class="timeline-content">
+                        <div class="timeline-items" id="timeline-items"></div>
+                        <div class="timeline-chart" id="timeline-chart">
+                            <div class="timeline-grid" id="timeline-grid"></div>
+                            <div class="timeline-today-line" id="timeline-today-line"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 項目編集モーダル -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <h2 id="edit-modal-title">Edit Item</h2>
+            
+            <form id="edit-form">
+                <div class="form-group">
+                    <label>Type:</label>
+                    <select id="edit-type" onchange="updateEditFormFields()">
+                        <option value="task">Task</option>
+                        <option value="milestone">Milestone</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>ID: <span style="color: #f44336;">*</span></label>
+                    <input type="text" id="edit-id" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Name: <span style="color: #f44336;">*</span></label>
+                    <input type="text" id="edit-name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Status:</label>
+                    <select id="edit-status">
+                        <option value="not-started">Not Started</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="edit-start-date-group">
+                    <label>Start Date: <span style="font-size: 12px; color: #666;">(optional)</span></label>
+                    <input type="date" id="edit-start-date">
+                </div>
+                
+                <div class="form-group">
+                    <label id="edit-end-date-label">End Date: <span style="font-size: 12px; color: #666;">(optional)</span></label>
+                    <input type="date" id="edit-end-date">
+                </div>
+                
+                <div class="form-group">
+                    <label>Dependencies: <span style="font-size: 12px; color: #666;">(comma separated IDs)</span></label>
+                    <input type="text" id="edit-dependencies" placeholder="M_PRJ_STR, T_REQ_ANL">
+                </div>
+                
+                <div class="form-group">
+                    <label>Description:</label>
+                    <textarea id="edit-description"></textarea>
+                </div>
+            </form>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-primary" onclick="saveEditedItem()">Save</button>
+                <button type="button" class="btn btn-secondary" onclick="deleteItem()" id="delete-btn" style="background: #f44336; color: white;">Delete</button>
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 新規項目追加モーダル -->
+    <div id="add-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAddModal()">&times;</span>
+            <h2>Add New Item</h2>
+            
+            <form id="add-form">
+                <div class="form-group">
+                    <label>Type:</label>
+                    <select id="add-type" onchange="updateAddFormFields()">
+                        <option value="task">Task</option>
+                        <option value="milestone">Milestone</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>ID: <span style="color: #f44336;">*</span></label>
+                    <input type="text" id="add-id" required placeholder="T_NEW_TASK or M_NEW_MILESTONE">
+                </div>
+                
+                <div class="form-group">
+                    <label>Name: <span style="color: #f44336;">*</span></label>
+                    <input type="text" id="add-name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Status:</label>
+                    <select id="add-status">
+                        <option value="not-started">Not Started</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="add-start-date-group">
+                    <label>Start Date: <span style="font-size: 12px; color: #666;">(optional)</span></label>
+                    <input type="date" id="add-start-date">
+                </div>
+                
+                <div class="form-group">
+                    <label id="add-end-date-label">End Date: <span style="font-size: 12px; color: #666;">(optional)</span></label>
+                    <input type="date" id="add-end-date">
+                </div>
+                
+                <div class="form-group">
+                    <label>Dependencies: <span style="font-size: 12px; color: #666;">(comma separated IDs)</span></label>
+                    <input type="text" id="add-dependencies" placeholder="M_PRJ_STR, T_REQ_ANL">
+                </div>
+                
+                <div class="form-group">
+                    <label>Description:</label>
+                    <textarea id="add-description"></textarea>
+                </div>
+            </form>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-primary" onclick="addNewItem()">Add Item</button>
+                <button type="button" class="btn btn-secondary" onclick="closeAddModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- データインポートモーダル -->
+    <div id="import-modal" class="modal">
+        <div class="modal-content large">
+            <span class="close" onclick="closeImportModal()">&times;</span>
+            <h2>Import Data</h2>
+            
+            <div class="form-group">
+                <label>Select Import Format:</label>
+                <div style="display: flex; gap: 15px; margin: 10px 0;">
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <input type="radio" name="import-format" value="tsv" checked onchange="updateImportFormat()">
+                        TSV (from Spreadsheet)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <input type="radio" name="import-format" value="json" onchange="updateImportFormat()">
+                        JSON (with Layout Info)
+                    </label>
+                </div>
+            </div>
+            
+            <div id="tsv-import" class="import-section">
+                <div class="form-group">
+                    <label>Paste TSV Data:</label>
+                    <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                        Create data in a spreadsheet, select all and copy & paste here<br>
+                        <strong>Required columns:</strong> Type, ID, Name, Status, Start Date, End Date/Due Date, Dependencies, Description<br>
+                        <strong>Note:</strong> Start Date and End Date/Due Date can be empty for unscheduled items
+                    </div>
+                    <textarea id="tsv-input" placeholder="Type	ID	Name	Status	Start Date	End Date/Due Date	Dependencies	Description
+Milestone	M_PRJ_STR	Project Start	Milestone		2024-01-15		Project kickoff meeting
+Task	T_REQ_ANL	Requirements Analysis	Completed	2024-01-16	2024-02-15	M_PRJ_STR	System requirements analysis" style="height: 200px; font-family: monospace; font-size: 12px;"></textarea>
+                </div>
+            </div>
+            
+            <div id="json-import" class="import-section" style="display: none;">
+                <div class="form-group">
+                    <label>Paste JSON Data:</label>
+                    <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                        Import JSON data with layout information. Graph positions will be restored.<br>
+                        <strong>Required fields:</strong> milestones[], tasks[], each item needs id, name, status, dependencies[], description<br>
+                        <strong>Optional fields:</strong> startDate, endDate (can be empty for unscheduled items), graphLayout.nodePositions (for layout restoration)
+                    </div>
+                    <textarea id="json-input" placeholder='{
+  "exportDate": "2024-08-23T10:30:00Z",
+  "version": "1.0",
+  "milestones": [
+    {
+      "id": "M_PRJ_STR",
+      "name": "Project Start",
+      "status": "completed",
+      "endDate": "2024-01-15",
+      "dependencies": [],
+      "description": "Project kickoff meeting"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "T_REQ_ANL",
+      "name": "Requirements Analysis",
+      "status": "completed",
+      "startDate": "2024-01-16",
+      "endDate": "2024-02-15",
+      "dependencies": ["M_PRJ_STR"],
+      "description": "System requirements analysis"
+    }
+  ],
+  "graphLayout": {
+    "nodePositions": {
+      "M_PRJ_STR": {"x": 100, "y": 150},
+      "T_REQ_ANL": {"x": 350, "y": 200}
+    },
+    "lastUpdated": "2024-08-23T10:30:00Z"
+  }
+}' style="height: 300px; font-family: monospace; font-size: 12px;"></textarea>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 5px;">
+                    <input type="checkbox" id="replace-data" checked>
+                    Replace existing data (uncheck for append mode)
+                </label>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="copy-btn" onclick="importData()">Execute Import</button>
+                <button type="button" class="btn btn-secondary" onclick="closeImportModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- データ出力モーダル -->
+    <div id="export-modal" class="modal">
+        <div class="modal-content large">
+            <span class="close" onclick="closeExportModal()">&times;</span>
+            <h2 id="export-modal-title">Export Data</h2>
+            
+            <div class="export-data" id="export-data-content"></div>
+            
+            <div class="form-actions">
+                <button type="button" class="copy-btn" id="copy-btn" onclick="copyToClipboard()">Copy to Clipboard</button>
+                <button type="button" class="btn btn-secondary" onclick="downloadFile()">Download File</button>
+                <button type="button" class="btn btn-secondary" onclick="closeExportModal()">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Core scripts - 最初に読み込み -->
+    <script src="js/data.js"></script>
+    <script src="js/utils.js"></script>
+
+    <!-- Feature scripts -->
+    <script src="js/features/history.js"></script>
+    <script src="js/features/modal.js"></script>
+    <script src="js/features/import-export.js"></script>
+
+    <!-- View scripts -->
+    <script src="js/views/tableView.js"></script>
+    <script src="js/views/graphView.js"></script>
+    <script src="js/views/timeline/timelineState.js"></script>
+    <script src="js/views/timeline/timelineCalculator.js"></script>
+    <script src="js/views/timelineView.js"></script>
+
+    <!-- Main application script - 最後に読み込み -->
+    <script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,971 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f5f7fa;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header h1 {
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.view-toggle {
+    display: flex;
+    gap: 10px;
+}
+
+.toggle-btn {
+    padding: 8px 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    background: transparent;
+    color: white;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.toggle-btn.active {
+    background: rgba(255,255,255,0.2);
+    border-color: white;
+}
+
+.content {
+    padding: 30px;
+}
+
+.view {
+    display: none;
+}
+
+.view.active {
+    display: block;
+}
+
+/* テーブル表示スタイル */
+.table-container {
+    overflow-x: auto;
+    margin-bottom: 20px;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #e1e5e9;
+    font-size: 14px;
+}
+
+th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #2c3e50;
+    position: sticky;
+    top: 0;
+}
+
+tr:hover {
+    background: #f8f9fa;
+}
+
+.milestone-row {
+    background: #e8f4f8;
+    font-weight: 600;
+}
+
+.milestone-row:hover {
+    background: #d4e9f7;
+}
+
+.task-dependencies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.dependency-tag {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    border: 1px solid #bbdefb;
+}
+
+.status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status.not-started { background: #fee; color: #c62828; }
+.status.in-progress { background: #fff3e0; color: #ef6c00; }
+.status.completed { background: #e8f5e8; color: #2e7d32; }
+.status.milestone { background: #f3e5f5; color: #7b1fa2; }
+
+/* グラフ表示スタイル */
+.graph-container {
+    position: relative;
+    width: 100%;
+    height: 600px;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    background: #fafbfc;
+    overflow: hidden;
+    cursor: grab;
+}
+
+.graph-container:active {
+    cursor: grabbing;
+}
+
+.graph-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.node {
+    cursor: pointer;
+    pointer-events: all;
+}
+
+.node-milestone {
+    fill: #9c27b0;
+    stroke: #7b1fa2;
+    stroke-width: 3;
+}
+
+.node-task {
+    stroke-width: 2;
+}
+
+.node-task.not-started {
+    fill: #ffcdd2;
+    stroke: #c62828;
+}
+
+.node-task.in-progress {
+    fill: #ffe0b2;
+    stroke: #ef6c00;
+}
+
+.node-task.completed {
+    fill: #c8e6c9;
+    stroke: #2e7d32;
+}
+
+.link {
+    stroke: #90a4ae;
+    stroke-width: 2;
+    fill: none;
+    marker-end: url(#arrowhead);
+    pointer-events: none;
+}
+
+.link:hover {
+    stroke: #5c6bc0;
+    stroke-width: 3;
+}
+
+.node-text {
+    font-size: 12px;
+    fill: #2c3e50;
+    text-anchor: middle;
+    pointer-events: none;
+}
+
+.node-date {
+    font-size: 10px;
+    fill: #546e7a;
+    text-anchor: middle;
+    pointer-events: none;
+}
+
+/* ツールチップスタイル（改良版） */
+.tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 12px 15px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    pointer-events: none;
+    z-index: 1000;
+    max-width: 280px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    backdrop-filter: blur(4px);
+}
+
+.tooltip.show {
+    opacity: 1;
+}
+
+.tooltip .tooltip-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #fff;
+    font-size: 13px;
+}
+
+.tooltip .tooltip-detail {
+    color: #e0e0e0;
+    font-size: 11px;
+    margin-bottom: 2px;
+}
+
+.tooltip .tooltip-warning {
+    color: #ff9800;
+    font-weight: 600;
+    font-size: 11px;
+    margin: 4px 0;
+    padding: 3px 6px;
+    background: rgba(255, 152, 0, 0.2);
+    border-radius: 4px;
+    border-left: 3px solid #ff9800;
+}
+
+/* タイムラインスタイル（改良版） */
+.timeline-container {
+    width: 100%;
+    height: 700px;
+    overflow: auto;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    background: #fafbfc;
+    position: relative;
+    scrollbar-width: thin;
+    scrollbar-color: #ccc #f1f1f1;
+    transform: translateZ(0);
+    will-change: scroll-position;
+}
+
+.timeline-container::-webkit-scrollbar {
+    height: 12px;
+    width: 12px;
+}
+
+.timeline-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+}
+
+.timeline-container::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 6px;
+}
+
+.timeline-container::-webkit-scrollbar-thumb:hover {
+    background: #999;
+}
+
+.timeline-header {
+    position: sticky;
+    top: 0;
+    background: #fff;
+    border-bottom: 2px solid #e1e5e9;
+    z-index: 100;
+    display: flex;
+    font-size: 12px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.timeline-sidebar {
+    width: 250px;
+    min-width: 250px;
+    max-width: 250px;
+    flex-shrink: 0;
+    background: #f8f9fa;
+    border-right: 1px solid #e1e5e9;
+    padding: 10px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: sticky;
+    left: 0;
+    z-index: 101;
+}
+
+.timeline-dates {
+    flex: 1;
+    display: flex;
+    min-height: 50px;
+    align-items: center;
+    position: relative;
+}
+
+.timeline-content {
+    display: flex;
+    position: relative;
+}
+
+.timeline-items {
+    width: 250px;
+    min-width: 250px;
+    max-width: 250px;
+    background: #f8f9fa;
+    border-right: 1px solid #e1e5e9;
+    position: sticky;
+    left: 0;
+    z-index: 50;
+    flex-shrink: 0;
+}
+
+/* 改良版：ドラッグ&ドロップ対応のタイムライン項目行 */
+.timeline-item-row {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    padding: 8px 15px;
+    border-bottom: 1px solid #e1e5e9;
+    font-size: 13px;
+    background: white;
+    min-height: 60px;
+    transition: all 0.2s ease;
+    cursor: move;
+    user-select: none;
+    position: relative;
+}
+
+.timeline-item-row:hover {
+    background: #f5f5f5;
+    transform: translateX(2px);
+    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+}
+
+.timeline-item-row.milestone {
+    background: #f3e5f5;
+    font-weight: 600;
+}
+
+.timeline-item-row.milestone:hover {
+    background: #e8d5f0;
+}
+
+/* ドラッグ中のスタイル */
+.timeline-item-row.dragging {
+    opacity: 0.7;
+    transform: rotate(1deg) translateX(4px);
+    box-shadow: 4px 4px 12px rgba(0,0,0,0.3);
+    z-index: 1000;
+    background: #e3f2fd;
+    border: 2px dashed #2196f3;
+}
+
+.timeline-item-row.dragging.milestone {
+    background: #f3e5f5;
+    border: 2px dashed #9c27b0;
+}
+
+/* ドラッグハンドル */
+.drag-handle {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #bbb;
+    font-size: 14px;
+    opacity: 1;
+    transition: all 0.2s ease;
+    cursor: grab;
+    font-weight: bold;
+    width: 12px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.timeline-item-row:hover .drag-handle {
+    color: #666;
+    opacity: 1;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+/* ドロップインジケーター */
+.drop-indicator {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #f44336, #e53935);
+    border-radius: 2px;
+    z-index: 1000;
+    opacity: 0;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 8px rgba(244, 67, 54, 0.6);
+}
+
+.drop-indicator.show {
+    opacity: 1;
+}
+
+.drop-indicator::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: -3px;
+    width: 12px;
+    height: 9px;
+    background: #f44336;
+    border-radius: 50%;
+    box-shadow: 0 0 4px rgba(244, 67, 54, 0.8);
+}
+
+.drop-indicator::after {
+    content: '';
+    position: absolute;
+    right: -6px;
+    top: -3px;
+    width: 12px;
+    height: 9px;
+    background: #f44336;
+    border-radius: 50%;
+    box-shadow: 0 0 4px rgba(244, 67, 54, 0.8);
+}
+
+.timeline-item-id {
+    font-size: 10px;
+    font-weight: 600;
+    color: #666;
+    margin-bottom: 2px;
+    margin-left: 20px;
+    transition: margin-left 0.2s ease;
+}
+
+.timeline-item-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: #2c3e50;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-left: 20px;
+    transition: margin-left 0.2s ease;
+}
+
+.timeline-chart {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    background: white;
+    z-index: 2;
+    overflow: visible;
+}
+
+.timeline-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.timeline-grid-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #e1e5e9;
+}
+
+.timeline-today-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #f44336;
+    z-index: 10;
+    box-shadow: 0 0 4px rgba(244, 67, 54, 0.3);
+}
+
+.timeline-bar {
+    position: absolute;
+    height: 24px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    font-size: 11px;
+    color: white;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    z-index: 3;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    will-change: transform, opacity;
+}
+
+.timeline-bar:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    z-index: 4;
+}
+
+.timeline-bar.milestone {
+    height: 0;
+    width: 0;
+    border-left: 15px solid transparent;
+    border-right: 15px solid transparent;
+    border-bottom: 24px solid #9c27b0;
+    background: transparent;
+    border-radius: 0;
+    justify-content: center;
+    padding: 0;
+    margin-top: -12px;
+    box-shadow: 0 2px 4px rgba(156, 39, 176, 0.3);
+}
+
+.timeline-bar.milestone:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+}
+
+.timeline-bar.not-started {
+    background: linear-gradient(45deg, #f44336, #e53935);
+    color: white;
+}
+
+.timeline-bar.in-progress {
+    background: linear-gradient(45deg, #ff9800, #f57c00);
+    color: white;
+}
+
+.timeline-bar.completed {
+    background: linear-gradient(45deg, #4caf50, #388e3c);
+    color: white;
+}
+
+/* タイムライン依存関係のスタイル */
+.timeline-dependencies-svg {
+    pointer-events: none;
+    z-index: 1;
+    overflow: visible;
+}
+
+.timeline-dependency-arrow {
+    pointer-events: all;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    vector-effect: non-scaling-stroke;
+}
+
+.timeline-dependency-arrow:hover {
+    filter: drop-shadow(0 2px 4px rgba(33, 150, 243, 0.3));
+}
+
+.timeline-dependency-arrow[data-has-conflict="true"] {
+    stroke: #f44336;
+    stroke-dasharray: 3,2;
+}
+
+.timeline-dependency-arrow[data-has-conflict="false"] {
+    stroke: #90a4ae;
+}
+
+.timeline-controls {
+    margin-bottom: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.timeline-zoom-btn {
+    background: #f5f5f5;
+    color: #666;
+    border: 1px solid #ddd;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.timeline-zoom-btn:hover, .timeline-zoom-btn.active {
+    background: #2196f3;
+    color: white;
+    border-color: #2196f3;
+}
+
+.legend {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: 1px solid #e1e5e9;
+    z-index: 100;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid #666;
+}
+
+.controls {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.add-btn {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s ease;
+}
+
+.add-btn:hover {
+    background: #45a049;
+}
+
+/* 出力ボタンスタイル */
+.export-btn {
+    background: #2196f3;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s ease;
+}
+
+.export-btn:hover {
+    background: #1976d2;
+}
+
+.export-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.export-menu {
+    display: none;
+    position: absolute;
+    background: white;
+    min-width: 180px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    border-radius: 6px;
+    z-index: 1000;
+    border: 1px solid #e1e5e9;
+    top: 100%;
+    left: 0;
+    margin-top: 5px;
+}
+
+.export-menu.show {
+    display: block;
+}
+
+.export-option {
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    font-size: 14px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.export-option:last-child {
+    border-bottom: none;
+}
+
+.export-option:hover {
+    background: #f8f9fa;
+}
+
+.export-option .format-name {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.export-option .format-desc {
+    font-size: 12px;
+    color: #666;
+    margin-top: 2px;
+}
+
+/* モーダルスタイル */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 30px;
+    border-radius: 12px;
+    width: 500px;
+    max-width: 90%;
+    position: relative;
+}
+
+.modal-content.large {
+    width: 800px;
+    max-width: 95%;
+}
+
+.close {
+    position: absolute;
+    right: 15px;
+    top: 15px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #aaa;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.form-group textarea {
+    height: 80px;
+    resize: vertical;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 30px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: #2196f3;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #1976d2;
+}
+
+.btn-secondary {
+    background: #f5f5f5;
+    color: #666;
+}
+
+.btn-secondary:hover {
+    background: #e0e0e0;
+}
+
+/* 出力データ表示用 */
+.export-data {
+    background: #f8f9fa;
+    border: 1px solid #e1e5e9;
+    border-radius: 6px;
+    padding: 15px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    line-height: 1.4;
+}
+
+.copy-btn {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-right: 10px;
+}
+
+.copy-btn:hover {
+    background: #45a049;
+}
+
+.copy-btn.copied {
+    background: #2e7d32;
+}
+
+/* 編集ボタンのスタイル */
+.edit-btn {
+    background: #2196f3;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: background 0.3s ease;
+    margin-right: 5px;
+}
+
+.edit-btn:hover {
+    background: #1976d2;
+}
+
+/* 未定日程のスタイル */
+.unscheduled {
+    color: #999;
+    font-style: italic;
+}
+
+.unscheduled-indicator {
+    background: #f5f5f5;
+    color: #666;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    border: 1px solid #ddd;
+}
+
+/* 日程未定のタイムラインバー */
+.timeline-bar.unscheduled {
+    background: repeating-linear-gradient(
+        45deg,
+        #f5f5f5,
+        #f5f5f5 5px,
+        #e0e0e0 5px,
+        #e0e0e0 10px
+    );
+    color: #666;
+    border: 2px dashed #bbb;
+    opacity: 0.8;
+}
+
+.timeline-bar.unscheduled.milestone {
+    border-left: 15px solid transparent;
+    border-right: 15px solid transparent;
+    border-bottom: 24px solid #bbb;
+    background: repeating-linear-gradient(
+        45deg,
+        #f5f5f5,
+        #f5f5f5 3px,
+        #e0e0e0 3px,
+        #e0e0e0 6px
+    );
+    /* 三角形の場合はborderで背景パターンを表現 */
+    border-bottom-color: #bbb;
+    height: 0;
+    width: 0;
+    margin-top: -12px;
+}
+
+.timeline-bar.unscheduled.milestone::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: -13px;
+    border-left: 13px solid transparent;
+    border-right: 13px solid transparent;
+    border-bottom: 20px solid rgba(187, 187, 187, 0.3);
+    z-index: -1;
+}
+
+/* 未定アイテム専用の領域 */
+.unscheduled-section {
+    background: #f9f9f9;
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    margin: 10px;
+    padding: 10px;
+    position: relative;
+}
+
+.unscheduled-section-title {
+    position: absolute;
+    top: -12px;
+    left: 10px;
+    background: #f9f9f9;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+}
