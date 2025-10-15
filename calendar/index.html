@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+    
+    h2 {
+      margin: 0 0 20px 0;
+      color: #333;
+      font-size: 22px;
+      text-align: center;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 12px;
+    }
+    
+    .preset-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .preset-btn {
+      padding: 14px 20px;
+      font-size: 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 500;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+    
+    .preset-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .preset-btn:active {
+      transform: translateY(0);
+    }
+    
+    .preset-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    #status {
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 16px;
+      font-size: 14px;
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .status-loading {
+      background: #e3f2fd;
+      color: #1976d2;
+      border-left: 4px solid #1976d2;
+    }
+    
+    .status-success {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border-left: 4px solid #4caf50;
+    }
+    
+    .status-error {
+      background: #ffebee;
+      color: #c62828;
+      border-left: 4px solid #f44336;
+    }
+    
+    .status-warning {
+      background: #fff3e0;
+      color: #e65100;
+      border-left: 4px solid #ff9800;
+    }
+    
+    .error-list {
+      margin-top: 8px;
+      padding-left: 20px;
+      font-size: 13px;
+    }
+    
+    .loading-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #1976d2;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal-content {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      max-width: 400px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      justify-content: flex-end;
+    }
+    
+    .modal-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    
+    .modal-btn-cancel {
+      background: #f5f5f5;
+      color: #333;
+    }
+    
+    .modal-btn-cancel:hover {
+      background: #e0e0e0;
+    }
+    
+    .modal-btn-continue {
+      background: #ff9800;
+      color: white;
+    }
+    
+    .modal-btn-continue:hover {
+      background: #f57c00;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>📅 カレンダー切り替え</h2>
+    
+    <div id="presetButtons" class="preset-buttons">
+      <p style="text-align: center; color: #666;">読み込み中...</p>
+    </div>
+    
+    <div id="status"></div>
+  </div>
+  
+  <div id="errorModal" class="modal">
+    <div class="modal-content">
+      <h3 style="margin-top: 0; color: #c62828;">⚠️ エラーが発生しました</h3>
+      <p id="errorMessage"></p>
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-cancel" onclick="cancelSwitch()">キャンセル</button>
+        <button class="modal-btn modal-btn-continue" onclick="continueSwitch()">続行</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentPreset = null;
+    let hasErrors = false;
+    
+    // ページ読み込み時にプリセット一覧を取得
+    window.onload = function() {
+      google.script.run
+        .withSuccessHandler(displayPresets)
+        .withFailureHandler(showError)
+        .getPresets();
+    };
+    
+    // プリセットボタンを表示
+    function displayPresets(presets) {
+      const container = document.getElementById('presetButtons');
+      container.innerHTML = '';
+      
+      if (presets.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #999;">プリセットが設定されていません</p>';
+        return;
+      }
+      
+      presets.forEach(preset => {
+        const btn = document.createElement('button');
+        btn.className = 'preset-btn';
+        btn.textContent = preset;
+        btn.onclick = () => executeSwitch(preset);
+        container.appendChild(btn);
+      });
+    }
+    
+    // カレンダー切り替えを実行
+    function executeSwitch(presetName) {
+      currentPreset = presetName;
+      hasErrors = false;
+      
+      // すべてのボタンを無効化
+      const buttons = document.querySelectorAll('.preset-btn');
+      buttons.forEach(btn => btn.disabled = true);
+      
+      // ローディング表示
+      showStatus('loading', `<span class="loading-spinner"></span>「${presetName}」に切り替え中...`);
+      
+      // 切り替え実行
+      google.script.run
+        .withSuccessHandler(handleSuccess)
+        .withFailureHandler(showError)
+        .switchCalendar(presetName);
+    }
+    
+    // 成功時の処理
+    function handleSuccess(results) {
+      const buttons = document.querySelectorAll('.preset-btn');
+      buttons.forEach(btn => btn.disabled = false);
+      
+      if (results.errors.length > 0) {
+        // エラーがある場合
+        hasErrors = true;
+        const errorMsg = `
+          <strong>一部のカレンダーでエラーが発生しました:</strong>
+          <ul class="error-list">
+            ${results.errors.map(err => '<li>' + err + '</li>').join('')}
+          </ul>
+          <p>処理を続行しますか？</p>
+        `;
+        
+        document.getElementById('errorMessage').innerHTML = errorMsg;
+        document.getElementById('errorModal').style.display = 'flex';
+      } else {
+        // 完全成功
+        showStatus('success', `✓ 「${currentPreset}」に切り替えました（${results.success.length}件）`);
+        
+        // 3秒後に自動的にメッセージを消す
+        setTimeout(() => {
+          const statusEl = document.getElementById('status');
+          statusEl.style.display = 'none';
+        }, 3000);
+      }
+    }
+    
+    // エラー時の処理
+    function showError(error) {
+      const buttons = document.querySelectorAll('.preset-btn');
+      buttons.forEach(btn => btn.disabled = false);
+      
+      showStatus('error', '❌ エラー: ' + error.message);
+    }
+    
+    // ステータス表示
+    function showStatus(type, message) {
+      const statusEl = document.getElementById('status');
+      statusEl.className = 'status-' + type;
+      statusEl.innerHTML = message;
+      statusEl.style.display = 'block';
+    }
+    
+    // エラーモーダル - キャンセル
+    function cancelSwitch() {
+      document.getElementById('errorModal').style.display = 'none';
+      showStatus('warning', '⚠ 処理をキャンセルしました');
+    }
+    
+    // エラーモーダル - 続行
+    function continueSwitch() {
+      document.getElementById('errorModal').style.display = 'none';
+      showStatus('warning', `⚠ 「${currentPreset}」に切り替えました（一部エラーあり）`);
+    }
+  </script>
+</body>
+</html>
