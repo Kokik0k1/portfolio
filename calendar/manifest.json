@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Google Calendar Switcher",
+  "version": "1.0",
+  "description": "ワンクリックでカレンダー表示を切り替え",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://calendar.google.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "カレンダー切り替え"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://calendar.google.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
